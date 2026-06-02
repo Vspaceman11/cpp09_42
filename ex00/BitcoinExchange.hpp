@@ -14,4 +14,11 @@ class BitcoinExchange
 		bool isValidValue(std::string_view valueStr, double& value) const;
 		void trim(std::string_view& str) const;
 
+	public:
+		BitcoinExchange();
+		BitcoinExchange(const BitcoinExchange& other);
+		BitcoinExchange& operator=(const BitcoinExchange& other);
+		~BitcoinExchange();
+
+		void processInputFile(const std::string& inputFilename);
 };
