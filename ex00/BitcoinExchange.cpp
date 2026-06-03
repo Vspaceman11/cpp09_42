@@ -62,3 +62,45 @@ bool BitcoinExchange::parseDatabase()
 	file.close();
 	return true;
 }
+
+bool BitcoinExchange::isValidDate(std::string_view date) const
+{
+	if (date.length() != 10 || date [4] != '-' || date[7] != '-')
+		return false;
+
+	for (size_t i = 0; i < date.length(); ++i)
+	{
+		if (i != 4 && i != 7 && !std::isdigit (date[i]))
+			return false;
+	}
+
+
+	int year;
+	int month;
+	int day;
+	try
+	{
+		year = std::stoi(std::string(date.substr(0, 4)));
+		month = std::stoi(std::string(date.substr(5, 2)));
+		day = std::stoi(std::string(date.substr(8, 2)));
+	}
+	catch(...)
+	{
+		return false;
+	}
+
+
+	if (year < 2009 || month < 1 | month > 12 || day < 1)
+		return false;
+
+	const int daysInMonths[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+	bool isLeap = (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0));
+
+	int maxDays = daysInMonths[month - 1];
+	if (month == 2 && isLeap)
+		maxDays = 29;
+	return day <= maxDays;
+}
+
+
