@@ -104,3 +104,43 @@ bool BitcoinExchange::isValidDate(std::string_view date) const
 }
 
 
+bool BitcoinExchange::isValidValue(std::string_view valueStr, double& value) const
+{
+	if (valueStr.empty())
+	{
+		std::cerr << "Error: empty value" << std::endl;
+		return false;
+	}
+
+	try
+	{
+		size_t processedChars = 0;
+		std::string s(valueStr);
+		value = std::stod(s, &processedChars);
+
+		if (processedChars != s.length())
+		{
+			std::cerr << "Error: ad input: " << valueStr << std::endl;
+			return false;
+		}
+	}
+	catch(...)
+	{
+		std::cerr << "Error: bad input: " << valueStr << std::endl;
+		return false;
+	}
+
+	if (value < 0)
+	{
+		std::cerr << "Error: not a positive number" << std::endl;
+		return false;
+	}
+	if (value > 1000)
+	{
+		std::cerr << "Error: too large number" << std::endl;
+		return false;
+	}
+	return true;
+}
+
+
