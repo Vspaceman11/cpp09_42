@@ -1,4 +1,4 @@
-NAME		= ex00
+NAME		= btc
 CXX			= c++
 CXXFLAGS	= -Wall -Wextra -Werror -Wshadow -std=c++17
 SRC			= main.cpp BitcoinExchange.cpp
