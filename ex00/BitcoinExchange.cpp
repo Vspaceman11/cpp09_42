@@ -8,7 +8,7 @@
 BitcoinExchange::BitcoinExchange()
 {
 	if (!parseDatabase())
-		throw std::runtime_error("Error: Could not initialize database (data.svc)");
+		throw std::runtime_error("Error: Could not initialize database (data.csv)");
 }
 
 BitcoinExchange::BitcoinExchange(const BitcoinExchange& other)
@@ -29,7 +29,7 @@ BitcoinExchange::~BitcoinExchange() {}
 
 bool BitcoinExchange::parseDatabase()
 {
-	std::ifstream file("data.scv");
+	std::ifstream file("data.csv");
 	if (!file.is_open())
 		return false;
 
@@ -63,6 +63,16 @@ bool BitcoinExchange::parseDatabase()
 	return true;
 }
 
+void BitcoinExchange::trim(std::string_view& str) const {
+	const size_t first = str.find_first_not_of(" \t\r\n");
+	if (first == std::string_view::npos) {
+		str = "";
+		return;
+	}
+	const size_t last = str.find_last_not_of(" \t\r\n");
+	str = str.substr(first, (last - first + 1));
+}
+
 bool BitcoinExchange::isValidDate(std::string_view date) const
 {
 	if (date.length() != 10 || date [4] != '-' || date[7] != '-')
@@ -90,7 +100,7 @@ bool BitcoinExchange::isValidDate(std::string_view date) const
 	}
 
 
-	if (year < 2009 || month < 1 | month > 12 || day < 1)
+	if (year < 2009 || month < 1 || month > 12 || day < 1)
 		return false;
 
 	const int daysInMonths[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
@@ -120,7 +130,7 @@ bool BitcoinExchange::isValidValue(std::string_view valueStr, double& value) con
 
 		if (processedChars != s.length())
 		{
-			std::cerr << "Error: ad input: " << valueStr << std::endl;
+			std::cerr << "Error: bad input: " << valueStr << std::endl;
 			return false;
 		}
 	}
@@ -144,3 +154,72 @@ bool BitcoinExchange::isValidValue(std::string_view valueStr, double& value) con
 }
 
 
+void BitcoinExchange::processInputFile(const std::string& inputFilename)
+{
+	std::ifstream file(inputFilename);
+	if (!file.is_open())
+	{
+		std::cerr << "Error: could not open file" << std::endl;
+		return;
+	}
+
+	std::string line;
+
+	if (std::getline(file, line))
+	{
+		std::string_view header(line);
+		trim(header);
+		if (header != "date | value")
+			file.seekg(0);
+	}
+
+	while (std::getline(file, line))
+	{
+		if (line.empty())
+			continue;
+
+		size_t pipePos = line.find('|');
+		if (pipePos == std::string::npos)
+		{
+			std::cerr << "Error: bad input: " << line << std::endl;
+			continue;
+		}
+
+		std::string_view datePart(line.c_str(), pipePos);
+		std::string_view valuePart(line.c_str() + pipePos + 1);
+
+		trim(datePart);
+		trim(valuePart);
+
+		if (!isValidDate(datePart))
+		{
+			std::cerr << "Error: bad input: " << datePart << std::endl;
+			continue;
+		}
+
+		double bitcoinAmount = 0;
+		if (!isValidValue(valuePart, bitcoinAmount))
+			continue;
+
+		std::string targetDate(datePart);
+		auto it = _db.find(targetDate);
+
+		if (it != _db.end())
+		{
+			std::cout << targetDate << " => " << bitcoinAmount << " = " << (bitcoinAmount * it->second) << std::endl;
+		}
+		else
+		{
+			auto upperIt = _db.upper_bound(targetDate);
+
+			if (upperIt == _db.begin())
+				std::cerr << "Error: no exchange rate data available before " << targetDate << std::endl;
+			else
+			{
+				--upperIt;
+				std::cout << targetDate << " => " << bitcoinAmount << " = " << (bitcoinAmount * upperIt->second) << std::endl;
+			}
+		}
+	}
+	file.close();
+}
