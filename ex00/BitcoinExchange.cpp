@@ -130,13 +130,13 @@ bool BitcoinExchange::isValidValue(std::string_view valueStr, double& value) con
 
 		if (processedChars != s.length())
 		{
-			std::cerr << "Error: bad input: " << valueStr << std::endl;
+			std::cerr << "Error: bad input => " << valueStr << std::endl;
 			return false;
 		}
 	}
 	catch(...)
 	{
-		std::cerr << "Error: bad input: " << valueStr << std::endl;
+		std::cerr << "Error: bad input => " << valueStr << std::endl;
 		return false;
 	}
 
@@ -181,7 +181,7 @@ void BitcoinExchange::processInputFile(const std::string& inputFilename)
 		size_t pipePos = line.find('|');
 		if (pipePos == std::string::npos)
 		{
-			std::cerr << "Error: bad input: " << line << std::endl;
+			std::cerr << "Error: bad input => " << line << std::endl;
 			continue;
 		}
 
@@ -193,7 +193,7 @@ void BitcoinExchange::processInputFile(const std::string& inputFilename)
 
 		if (!isValidDate(datePart))
 		{
-			std::cerr << "Error: bad input: " << datePart << std::endl;
+			std::cerr << "Error: bad input => " << datePart << std::endl;
 			continue;
 		}
 
