@@ -8,7 +8,7 @@
 BitcoinExchange::BitcoinExchange()
 {
 	if (!parseDatabase())
-		throw std::runtime_error("Error: Could not initialize database (data.csv)");
+		throw std::runtime_error("Error: Could not initialize database (data.csv).");
 }
 
 BitcoinExchange::BitcoinExchange(const BitcoinExchange& other)
@@ -118,7 +118,7 @@ bool BitcoinExchange::isValidValue(std::string_view valueStr, double& value) con
 {
 	if (valueStr.empty())
 	{
-		std::cerr << "Error: empty value" << std::endl;
+		std::cerr << "Error: empty value." << std::endl;
 		return false;
 	}
 
@@ -142,12 +142,12 @@ bool BitcoinExchange::isValidValue(std::string_view valueStr, double& value) con
 
 	if (value < 0)
 	{
-		std::cerr << "Error: not a positive number" << std::endl;
+		std::cerr << "Error: not a positive number." << std::endl;
 		return false;
 	}
 	if (value > 1000)
 	{
-		std::cerr << "Error: too large number" << std::endl;
+		std::cerr << "Error: too large number." << std::endl;
 		return false;
 	}
 	return true;
@@ -159,7 +159,7 @@ void BitcoinExchange::processInputFile(const std::string& inputFilename)
 	std::ifstream file(inputFilename);
 	if (!file.is_open())
 	{
-		std::cerr << "Error: could not open file" << std::endl;
+		std::cerr << "Error: could not open file." << std::endl;
 		return;
 	}
 
