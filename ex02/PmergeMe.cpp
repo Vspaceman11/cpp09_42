@@ -21,7 +21,7 @@ PmergeMe& PmergeMe::operator=(const PmergeMe& other)
 
 PmergeMe::~PmergeMe() {}
 
-// Parsing and strict validation of incoming numbers
+// Parsing and strict validation of incoming arguments
 bool PmergeMe::parseArguments(int argc, char* argv[])
 {
 	for (int i = 1; i < argc; ++i)
@@ -30,10 +30,9 @@ bool PmergeMe::parseArguments(int argc, char* argv[])
 		if (arg.empty())
 			return false;
 
-		// Check that all characters of the argument are digits (positive numbers only)
-		for (size_t j = 0; j < arg.length(); ++j)
+		for (char c : arg)
 		{
-			if (!std::isdigit(arg[j]))
+			if (!std::isdigit(static_cast<unsigned char>(c)))
 				return false;
 		}
 
@@ -54,7 +53,7 @@ bool PmergeMe::parseArguments(int argc, char* argv[])
 	return _vector.empty() ? false : true;
 }
 
-// Index generation based on the Jacobsthal sequence (J_k = J_{k-1} + 2 * J_{k-2})
+// Generation of Jacobsthal sequence (J_k = J_{k-1} + 2 * J_{k-2})
 std::vector<size_t> PmergeMe::generateJacobsthalSequence(size_t n) const
 {
 	std::vector<size_t> seq;
@@ -65,14 +64,12 @@ std::vector<size_t> PmergeMe::generateJacobsthalSequence(size_t n) const
 	jacob.push_back(0);
 	jacob.push_back(1);
 
-	// Generate base Jacobsthal numbers until they exceed the size of the pend elements array
 	while (jacob.back() < n)
 	{
 		size_t next = jacob[jacob.size() - 1] + 2 * jacob[jacob.size() - 2];
 		jacob.push_back(next);
 	}
 
-	// Form the sequence to manage insertion groups (skip 0 and 1)
 	for (size_t i = 3; i < jacob.size(); ++i)
 	{
 		seq.push_back(jacob[i]);
@@ -88,7 +85,6 @@ void PmergeMe::run(int argc, char* argv[])
 		return;
 	}
 
-	// Print the "Before" state
 	std::cout << "Before: ";
 	printContainer(_vector);
 
@@ -104,11 +100,9 @@ void PmergeMe::run(int argc, char* argv[])
 	auto endTimeDeq = std::chrono::high_resolution_clock::now();
 	auto durationDeq = std::chrono::duration_cast<std::chrono::microseconds>(endTimeDeq - startTimeDeq);
 
-	// Print the "After" state (after sorting)
 	std::cout << "After:  ";
 	printContainer(_vector);
 
-	// Print execution time statistics
 	std::cout << "Time to process a range of " << _vector.size()
 			  << " elements with std::vector : " << durationVec.count() << " us" << std::endl;
 
