@@ -2,6 +2,7 @@
 #include <sstream>
 #include <iomanip>
 
+// default constructor: initialize empty containers
 PmergeMe::PmergeMe() {}
 
 PmergeMe::PmergeMe(const PmergeMe& other)
@@ -30,6 +31,7 @@ bool PmergeMe::parseArguments(int argc, char* argv[])
 		if (arg.empty())
 			return false;
 
+		// Only allow characters 0-9: no signs, no spaces, no letters
 		for (char c : arg)
 		{
 			if (!std::isdigit(static_cast<unsigned char>(c)))
@@ -38,38 +40,46 @@ bool PmergeMe::parseArguments(int argc, char* argv[])
 
 		try
 		{
+			// convert to integer and validate 32-bit signed positive range
 			long long val = std::stoll(arg);
 			if (val > 2147483647 || val < 0) // Protection against int overflow
 				return false;
 
+			// push same value to both containers so timings compare identical data
 			_vector.push_back(static_cast<int>(val));
 			_deque.push_back(static_cast<int>(val));
 		}
-		catch (...)
+		catch (...) // stoll can throw on overflow or invalid input
 		{
 			return false;
 		}
 	}
+	// ensure at least one valid number was provided
 	return _vector.empty() ? false : true;
 }
 
 // Generation of Jacobsthal sequence (J_k = J_{k-1} + 2 * J_{k-2})
 std::vector<size_t> PmergeMe::generateJacobsthalSequence(size_t n) const
 {
+	// generate Jacobsthal numbers until we reach or exceed n
+	// Jacobsthal: J0=0, J1=1, Jk = J_{k-1} + 2*J_{k-2}
 	std::vector<size_t> seq;
 	if (n <= 1)
-		return seq;
+		return seq; // no useful insertion order for 0 or 1 pend elements
 
 	std::vector<size_t> jacob;
 	jacob.push_back(0);
 	jacob.push_back(1);
 
+	// build sequence until we cover 'n'
 	while (jacob.back() < n)
 	{
 		size_t next = jacob[jacob.size() - 1] + 2 * jacob[jacob.size() - 2];
 		jacob.push_back(next);
 	}
 
+	// skip the first few trivial Jacobsthal numbers and return the rest
+	// starting from index 3 matches the insertion grouping used in the algorithm
 	for (size_t i = 3; i < jacob.size(); ++i)
 	{
 		seq.push_back(jacob[i]);
