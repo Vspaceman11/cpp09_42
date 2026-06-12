@@ -35,6 +35,7 @@ bool BitcoinExchange::parseDatabase()
 
 	std::string line;
 
+	// Skip the CSV header row (date, exchange_rate)
 	if (!std::getline(file, line))
 		return false;
 
@@ -51,11 +52,13 @@ bool BitcoinExchange::parseDatabase()
 
 		try
 		{
+			// Convert exchange rate to double and insert into map
 			double rate = std::stod(rateStr);
 			_db[date] = rate;
 		}
 		catch(...)
 		{
+			// Skip corrupted rows in data.csv if any present there
 			continue;
 		}
 	}
@@ -64,6 +67,7 @@ bool BitcoinExchange::parseDatabase()
 }
 
 void BitcoinExchange::trim(std::string_view& str) const {
+	// Zero-allocation O(1) string trimming using string_view view boundaries
 	const size_t first = str.find_first_not_of(" \t\r\n");
 	if (first == std::string_view::npos) {
 		str = "";
@@ -75,9 +79,11 @@ void BitcoinExchange::trim(std::string_view& str) const {
 
 bool BitcoinExchange::isValidDate(std::string_view date) const
 {
+	// Structural check: expected length YYYY-MM-DD (10 chars) and exact dash positions
 	if (date.length() != 10 || date [4] != '-' || date[7] != '-')
 		return false;
 
+	// Ensure all other characters are purely numeric digits
 	for (size_t i = 0; i < date.length(); ++i)
 	{
 		if (i != 4 && i != 7 && !std::isdigit (date[i]))
@@ -99,12 +105,13 @@ bool BitcoinExchange::isValidDate(std::string_view date) const
 		return false;
 	}
 
-
+	// Validate logical calendar boundaries (Bitcoin genesis block was in 2009)
 	if (year < 2009 || month < 1 || month > 12 || day < 1)
 		return false;
 
 	const int daysInMonths[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
+	// Gregorian leap year calculation Rule
 	bool isLeap = (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0));
 
 	int maxDays = daysInMonths[month - 1];
@@ -128,6 +135,7 @@ bool BitcoinExchange::isValidValue(std::string_view valueStr, double& value) con
 		std::string s(valueStr);
 		value = std::stod(s, &processedChars);
 
+		// Strict validation: if processed characters don't match total length, input contains trailing garbage
 		if (processedChars != s.length())
 		{
 			std::cerr << "Error: bad input => " << valueStr << std::endl;
@@ -140,6 +148,7 @@ bool BitcoinExchange::isValidValue(std::string_view valueStr, double& value) con
 		return false;
 	}
 
+	// Range validations requested explicitly by the subject
 	if (value < 0)
 	{
 		std::cerr << "Error: not a positive number." << std::endl;
@@ -165,12 +174,13 @@ void BitcoinExchange::processInputFile(const std::string& inputFilename)
 
 	std::string line;
 
+	// Validate optional file header safely
 	if (std::getline(file, line))
 	{
 		std::string_view header(line);
 		trim(header);
 		if (header != "date | value")
-			file.seekg(0);
+			file.seekg(0); // If no header, rewind stream back to the beginning
 	}
 
 	while (std::getline(file, line))
@@ -185,6 +195,7 @@ void BitcoinExchange::processInputFile(const std::string& inputFilename)
 			continue;
 		}
 
+		// Zero-copy slicing via string_view
 		std::string_view datePart(line.c_str(), pipePos);
 		std::string_view valuePart(line.c_str() + pipePos + 1);
 
@@ -206,17 +217,20 @@ void BitcoinExchange::processInputFile(const std::string& inputFilename)
 
 		if (it != _db.end())
 		{
+			// Key found exactly: compute value instantly
 			std::cout << targetDate << " => " << bitcoinAmount << " = " << (bitcoinAmount * it->second) << std::endl;
 		}
 		else
 		{
+			// Key not found: find the first date strictly greater than targetDate
 			auto upperIt = _db.upper_bound(targetDate);
 
 			if (upperIt == _db.begin())
+				// TargetDate is earlier than the oldest entry in data.csv
 				std::cerr << "Error: no exchange rate data available before " << targetDate << std::endl;
 			else
 			{
-				--upperIt;
+				--upperIt; // Step back by 1 element to get the closest preceding lower date
 				std::cout << targetDate << " => " << bitcoinAmount << " = " << (bitcoinAmount * upperIt->second) << std::endl;
 			}
 		}
