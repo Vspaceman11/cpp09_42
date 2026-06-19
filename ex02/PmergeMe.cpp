@@ -78,13 +78,252 @@ std::vector<size_t> PmergeMe::generateJacobsthalSequence(size_t n) const
 		jacob.push_back(next);
 	}
 
-	// skip the first few trivial Jacobsthal numbers and return the rest
-	// starting from index 3 matches the insertion grouping used in the algorithm
-	for (size_t i = 3; i < jacob.size(); ++i)
+	// Return unique Jacobsthal numbers that are <= n, avoiding duplicates
+	size_t lastValue = 0;
+	for (size_t i = 1; i < jacob.size(); ++i)
 	{
-		seq.push_back(jacob[i]);
+		if (jacob[i] <= n && jacob[i] != lastValue)
+		{
+			seq.push_back(jacob[i]);
+			lastValue = jacob[i];
+		}
 	}
+	
+	// Ensure we have at least one boundary that covers all elements
+	if (seq.empty() || seq.back() < n)
+		seq.push_back(n);
+		
 	return seq;
+}
+
+void PmergeMe::printVectorContainer(const std::vector<int>& c) const
+{
+	for (const auto& element : c)
+	{
+		std::cout << element << " ";
+	}
+	std::cout << std::endl;
+}
+
+void PmergeMe::printDequeContainer(const std::deque<int>& c) const
+{
+	for (const auto& element : c)
+	{
+		std::cout << element << " ";
+	}
+	std::cout << std::endl;
+}
+
+// Vector-specific implementation of Ford-Johnson sort
+void PmergeMe::fordJohnsonSortVector(std::vector<int>& vec)
+{
+	if (vec.size() < 2)
+		return;
+
+	// Step 1: Handle odd element (straggler) if list has odd number of elements
+	bool hasStraggler = (vec.size() % 2 != 0);
+	int straggler = 0;
+	if (hasStraggler)
+	{
+		straggler = vec.back();
+		vec.pop_back();
+	}
+
+	// Step 2: Create pairs by comparing adjacent elements
+	// Store as (high, low) - in original order, NOT sorted
+	std::vector<std::pair<int, int>> pairs;
+	pairs.reserve(vec.size() / 2);
+
+	for (size_t i = 0; i < vec.size(); i += 2)
+	{
+		if (vec[i] < vec[i + 1])
+			pairs.push_back({vec[i + 1], vec[i]});  // high, low
+		else
+			pairs.push_back({vec[i], vec[i + 1]});  // high, low
+	}
+
+	// Step 3: Extract mainChain from pairs in ORIGINAL unsorted order
+	std::vector<int> mainChain;
+	mainChain.reserve(pairs.size());
+	for (const auto& p : pairs)
+		mainChain.push_back(p.first);  // Extract high elements only
+
+	// Step 4: Recursively sort mainChain (this is where actual sorting happens)
+	fordJohnsonSortVector(mainChain);
+
+	// Step 5: Build pendElements matching the sorted order of mainChain
+	// For each high element in sorted mainChain, find its corresponding low element
+	// Also store the corresponding high element to optimize insertion range in Step 6
+	std::vector<int> pendElements;
+	std::vector<int> pairedHighs;  // Track high element for each pendElement
+	pendElements.reserve(pairs.size());
+	pairedHighs.reserve(pairs.size());
+	
+	std::vector<std::pair<int, int>> pairsCopy = pairs;  // Track which pairs are used
+	
+	for (int high : mainChain)
+	{
+		for (size_t i = 0; i < pairsCopy.size(); ++i)
+		{
+			// Find matching pair and extract its low element
+			if (pairsCopy[i].first == high && pairsCopy[i].first != -1)
+			{
+				pendElements.push_back(pairsCopy[i].second);
+				pairedHighs.push_back(high);  // Store corresponding high
+				pairsCopy[i].first = -1;  // Mark as used
+				break;
+			}
+		}
+	}
+
+	// Step 6: Insert pendElements using binary search with Jacobsthal sequence
+	// Limit search range to the position of each element's paired high
+	if (!pendElements.empty())
+		mainChain.insert(mainChain.begin(), pendElements[0]);
+
+	// Generate Jacobsthal sequence for insertion batches
+	std::vector<size_t> jacobsthal = generateJacobsthalSequence(pendElements.size());
+
+	size_t prevBound = 1;  // Already inserted pendElements[0]
+	
+	for (size_t bound : jacobsthal)
+	{
+		if (bound > pendElements.size())
+			bound = pendElements.size();
+
+		// Insert elements from prevBound to bound (right to left, in reverse order)
+		for (int i = static_cast<int>(bound) - 1; i >= static_cast<int>(prevBound); --i)
+		{
+			int elementToInsert = pendElements[i];
+			int pairedHigh = pairedHighs[i];  // Get the corresponding high element
+			
+			// Find position of the paired high element in mainChain
+			auto limitIt = std::lower_bound(mainChain.begin(), mainChain.end(), pairedHigh);
+			
+			// Binary search for insertion point, limited to position of paired high
+			// Since low <= high, search ends at limitIt
+			auto insertionPoint = std::upper_bound(mainChain.begin(), limitIt, elementToInsert);
+			mainChain.insert(insertionPoint, elementToInsert);
+		}
+
+		prevBound = bound;
+
+		if (bound == pendElements.size())
+			break;
+	}
+
+	// Step 7: Insert the straggler (odd element) if it exists
+	if (hasStraggler)
+	{
+		auto insertionPoint = std::upper_bound(mainChain.begin(), mainChain.end(), straggler);
+		mainChain.insert(insertionPoint, straggler);
+	}
+
+	vec.swap(mainChain);
+}
+
+// Deque-specific implementation of Ford-Johnson sort
+void PmergeMe::fordJohnsonSortDeque(std::deque<int>& deq)
+{
+	if (deq.size() < 2)
+		return;
+
+	// Step 1: Handle odd element (straggler) if list has odd number of elements
+	bool hasStraggler = (deq.size() % 2 != 0);
+	int straggler = 0;
+	if (hasStraggler)
+	{
+		straggler = deq.back();
+		deq.pop_back();
+	}
+
+	// Step 2: Create pairs by comparing adjacent elements
+	// Store as (high, low) - in original order, NOT sorted
+	std::deque<std::pair<int, int>> pairs;
+
+	for (size_t i = 0; i < deq.size(); i += 2)
+	{
+		if (deq[i] < deq[i + 1])
+			pairs.push_back({deq[i + 1], deq[i]});  // high, low
+		else
+			pairs.push_back({deq[i], deq[i + 1]});  // high, low
+	}
+
+	// Step 3: Extract mainChain from pairs in ORIGINAL unsorted order
+	std::deque<int> mainChain;
+	for (const auto& p : pairs)
+		mainChain.push_back(p.first);  // Extract high elements only
+
+	// Step 4: Recursively sort mainChain (this is where actual sorting happens)
+	fordJohnsonSortDeque(mainChain);
+
+	// Step 5: Build pendElements matching the sorted order of mainChain
+	// For each high element in sorted mainChain, find its corresponding low element
+	// Also store the corresponding high element to optimize insertion range in Step 6
+	std::deque<int> pendElements;
+	std::deque<int> pairedHighs;  // Track high element for each pendElement
+	
+	std::deque<std::pair<int, int>> pairsCopy = pairs;  // Track which pairs are used
+	
+	for (int high : mainChain)
+	{
+		for (size_t i = 0; i < pairsCopy.size(); ++i)
+		{
+			// Find matching pair and extract its low element
+			if (pairsCopy[i].first == high && pairsCopy[i].first != -1)
+			{
+				pendElements.push_back(pairsCopy[i].second);
+				pairedHighs.push_back(high);  // Store corresponding high
+				pairsCopy[i].first = -1;  // Mark as used
+				break;
+			}
+		}
+	}
+
+	// Step 6: Insert pendElements using binary search with Jacobsthal sequence
+	// Limit search range to the position of each element's paired high
+	if (!pendElements.empty())
+		mainChain.insert(mainChain.begin(), pendElements[0]);
+
+	// Generate Jacobsthal sequence for insertion batches
+	std::vector<size_t> jacobsthal = generateJacobsthalSequence(pendElements.size());
+
+	size_t prevBound = 1;  // Already inserted pendElements[0]
+
+	for (size_t bound : jacobsthal)
+	{
+		if (bound > pendElements.size())
+			bound = pendElements.size();
+
+		// Insert elements from prevBound to bound (right to left, in reverse order)
+		for (int i = static_cast<int>(bound) - 1; i >= static_cast<int>(prevBound); --i)
+		{
+			int elementToInsert = pendElements[i];
+			int pairedHigh = pairedHighs[i];  // Get the corresponding high element
+			
+			// Find position of the paired high element in mainChain
+			auto limitIt = std::lower_bound(mainChain.begin(), mainChain.end(), pairedHigh);
+			
+			// Binary search for insertion point, limited to position of paired high
+			// Since low <= high, search ends at limitIt
+			auto insertionPoint = std::upper_bound(mainChain.begin(), limitIt, elementToInsert);
+			mainChain.insert(insertionPoint, elementToInsert);
+		}
+
+		prevBound = bound;
+
+		if (bound == pendElements.size())
+			break;
+	}
+
+	// Step 7: Insert the straggler (odd element) if it exists
+	if (hasStraggler)
+	{
+		auto insertionPoint = std::upper_bound(mainChain.begin(), mainChain.end(), straggler);
+		mainChain.insert(insertionPoint, straggler);
+	}
+
+	deq.swap(mainChain);
 }
 
 void PmergeMe::run(int argc, char* argv[])
@@ -96,22 +335,22 @@ void PmergeMe::run(int argc, char* argv[])
 	}
 
 	std::cout << "Before: ";
-	printContainer(_vector);
+	printVectorContainer(_vector);
 
 	// --- Time measurement for std::vector ---
 	auto startTimeVec = std::chrono::high_resolution_clock::now();
-	fordJohnsonSort(_vector);
+	fordJohnsonSortVector(_vector);
 	auto endTimeVec = std::chrono::high_resolution_clock::now();
 	auto durationVec = std::chrono::duration_cast<std::chrono::microseconds>(endTimeVec - startTimeVec);
 
 	// --- Time measurement for std::deque ---
 	auto startTimeDeq = std::chrono::high_resolution_clock::now();
-	fordJohnsonSort(_deque);
+	fordJohnsonSortDeque(_deque);
 	auto endTimeDeq = std::chrono::high_resolution_clock::now();
 	auto durationDeq = std::chrono::duration_cast<std::chrono::microseconds>(endTimeDeq - startTimeDeq);
 
 	std::cout << "After:  ";
-	printContainer(_vector);
+	printVectorContainer(_vector);
 
 	std::cout << "Time to process a range of " << _vector.size()
 			  << " elements with std::vector : " << durationVec.count() << " us" << std::endl;
