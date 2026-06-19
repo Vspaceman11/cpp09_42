@@ -58,41 +58,40 @@ bool PmergeMe::parseArguments(int argc, char* argv[])
 	return _vector.empty() ? false : true;
 }
 
-// Generation of Jacobsthal sequence (J_k = J_{k-1} + 2 * J_{k-2})
+// Generation of Jacobsthal sequence for Ford-Johnson algorithm
+// Returns the insertion boundaries for the classical merge-insertion sort
 std::vector<size_t> PmergeMe::generateJacobsthalSequence(size_t n) const
 {
-	// generate Jacobsthal numbers until we reach or exceed n
-	// Jacobsthal: J0=0, J1=1, Jk = J_{k-1} + 2*J_{k-2}
 	std::vector<size_t> seq;
-	if (n <= 1)
-		return seq; // no useful insertion order for 0 or 1 pend elements
+	if (n == 0)
+		return seq;
 
+	// Generate Jacobsthal sequence: J(0)=0, J(1)=1, J(k) = J(k-1) + 2*J(k-2)
 	std::vector<size_t> jacob;
 	jacob.push_back(0);
 	jacob.push_back(1);
 
-	// build sequence until we cover 'n'
 	while (jacob.back() < n)
 	{
 		size_t next = jacob[jacob.size() - 1] + 2 * jacob[jacob.size() - 2];
 		jacob.push_back(next);
 	}
 
-	// Return unique Jacobsthal numbers that are <= n, avoiding duplicates
-	size_t lastValue = 0;
-	for (size_t i = 1; i < jacob.size(); ++i)
+	// Build sequence of insertion boundaries according to classical Ford-Johnson
+	// We skip J(0)=0 and use pairs: (J(2k), J(2k-1)) in that order
+	for (size_t i = 2; i < jacob.size(); i += 2)
 	{
-		if (jacob[i] <= n && jacob[i] != lastValue)
-		{
+		// For each pair of consecutive Jacobsthal numbers, add both if they fit
+		if (jacob[i] <= n)
 			seq.push_back(jacob[i]);
-			lastValue = jacob[i];
-		}
+		if (i + 1 < jacob.size() && jacob[i + 1] <= n)
+			seq.push_back(jacob[i + 1]);
 	}
-	
-	// Ensure we have at least one boundary that covers all elements
+
+	// Ensure we cover all elements
 	if (seq.empty() || seq.back() < n)
 		seq.push_back(n);
-		
+
 	return seq;
 }
 
@@ -158,19 +157,19 @@ void PmergeMe::fordJohnsonSortVector(std::vector<int>& vec)
 	std::vector<int> pairedHighs;  // Track high element for each pendElement
 	pendElements.reserve(pairs.size());
 	pairedHighs.reserve(pairs.size());
-	
-	std::vector<std::pair<int, int>> pairsCopy = pairs;  // Track which pairs are used
-	
+
+	std::vector<bool> used(pairs.size(), false);  // Track which pairs are used
+
 	for (int high : mainChain)
 	{
-		for (size_t i = 0; i < pairsCopy.size(); ++i)
+		for (size_t i = 0; i < pairs.size(); ++i)
 		{
 			// Find matching pair and extract its low element
-			if (pairsCopy[i].first == high && pairsCopy[i].first != -1)
+			if (!used[i] && pairs[i].first == high)
 			{
-				pendElements.push_back(pairsCopy[i].second);
+				pendElements.push_back(pairs[i].second);
 				pairedHighs.push_back(high);  // Store corresponding high
-				pairsCopy[i].first = -1;  // Mark as used
+				used[i] = true;  // Mark as used
 				break;
 			}
 		}
@@ -185,7 +184,7 @@ void PmergeMe::fordJohnsonSortVector(std::vector<int>& vec)
 	std::vector<size_t> jacobsthal = generateJacobsthalSequence(pendElements.size());
 
 	size_t prevBound = 1;  // Already inserted pendElements[0]
-	
+
 	for (size_t bound : jacobsthal)
 	{
 		if (bound > pendElements.size())
@@ -196,10 +195,10 @@ void PmergeMe::fordJohnsonSortVector(std::vector<int>& vec)
 		{
 			int elementToInsert = pendElements[i];
 			int pairedHigh = pairedHighs[i];  // Get the corresponding high element
-			
+
 			// Find position of the paired high element in mainChain
 			auto limitIt = std::lower_bound(mainChain.begin(), mainChain.end(), pairedHigh);
-			
+
 			// Binary search for insertion point, limited to position of paired high
 			// Since low <= high, search ends at limitIt
 			auto insertionPoint = std::upper_bound(mainChain.begin(), limitIt, elementToInsert);
@@ -262,19 +261,19 @@ void PmergeMe::fordJohnsonSortDeque(std::deque<int>& deq)
 	// Also store the corresponding high element to optimize insertion range in Step 6
 	std::deque<int> pendElements;
 	std::deque<int> pairedHighs;  // Track high element for each pendElement
-	
-	std::deque<std::pair<int, int>> pairsCopy = pairs;  // Track which pairs are used
-	
+
+	std::vector<bool> used(pairs.size(), false);  // Track which pairs are used
+
 	for (int high : mainChain)
 	{
-		for (size_t i = 0; i < pairsCopy.size(); ++i)
+		for (size_t i = 0; i < pairs.size(); ++i)
 		{
 			// Find matching pair and extract its low element
-			if (pairsCopy[i].first == high && pairsCopy[i].first != -1)
+			if (!used[i] && pairs[i].first == high)
 			{
-				pendElements.push_back(pairsCopy[i].second);
+				pendElements.push_back(pairs[i].second);
 				pairedHighs.push_back(high);  // Store corresponding high
-				pairsCopy[i].first = -1;  // Mark as used
+				used[i] = true;  // Mark as used
 				break;
 			}
 		}
@@ -300,10 +299,10 @@ void PmergeMe::fordJohnsonSortDeque(std::deque<int>& deq)
 		{
 			int elementToInsert = pendElements[i];
 			int pairedHigh = pairedHighs[i];  // Get the corresponding high element
-			
+
 			// Find position of the paired high element in mainChain
 			auto limitIt = std::lower_bound(mainChain.begin(), mainChain.end(), pairedHigh);
-			
+
 			// Binary search for insertion point, limited to position of paired high
 			// Since low <= high, search ends at limitIt
 			auto insertionPoint = std::upper_bound(mainChain.begin(), limitIt, elementToInsert);
